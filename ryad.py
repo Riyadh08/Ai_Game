@@ -14,7 +14,6 @@ pygame.mixer.init()
 screen = pygame.display.set_mode((1080, 800))
 pygame.mixer.music.load(r"music\game_music2.mp3")   # initial game music
 click_sound = pygame.mixer.Sound(r"music\user_move.wav")
-button_click_sound = pygame.mixer.Sound(r"music\user_move.wav")  # Using same sound for buttons
 
 # ---------- Configuration ----------
 FPS = 60
@@ -83,26 +82,9 @@ def main_game():
         hvai_rect = pygame.Rect(320, 340, 440, 60)
         aivai_rect = pygame.Rect(320, 420, 440, 60)
 
-        # Draw mode buttons with hover effect
-        mouse_pos = pygame.mouse.get_pos()
-        
-        # Human vs Human button
-        if hvh_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (180, 230, 180), hvh_rect, border_radius=8)
-        else:
-            pygame.draw.rect(screen, (200, 200, 200), hvh_rect, border_radius=8)
-        
-        # Human vs AI button  
-        if hvai_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (180, 230, 180), hvai_rect, border_radius=8)
-        else:
-            pygame.draw.rect(screen, (200, 200, 200), hvai_rect, border_radius=8)
-        
-        # AI vs AI button
-        if aivai_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (180, 230, 180), aivai_rect, border_radius=8)
-        else:
-            pygame.draw.rect(screen, (200, 200, 200), aivai_rect, border_radius=8)
+        pygame.draw.rect(screen, (200, 200, 200), hvh_rect, border_radius=8)
+        pygame.draw.rect(screen, (200, 200, 200), hvai_rect, border_radius=8)
+        pygame.draw.rect(screen, (200, 200, 200), aivai_rect, border_radius=8)
 
         draw_text(540, 290, "Human  vs  Human", 32)
         draw_text(540, 370, "Human  vs  AI (Minimax)", 32)
@@ -110,32 +92,16 @@ def main_game():
 
         # Grid selection
         draw_text(540, 530, "Choose Grid Size: 4   6   8 (Click icons below)", 22)
-        
-        # Grid selection buttons with visual feedback
+        # Fake icons drawn as rects for click areas
         grid4_rect = pygame.Rect(420, 560, 70, 40)
         grid6_rect = pygame.Rect(500, 560, 70, 40)
         grid8_rect = pygame.Rect(580, 560, 70, 40)
-        
-        # Draw grid buttons with selection feedback
-        grid4_color = (100, 255, 100) if grid_size == 4 else (180, 230, 180) if grid4_rect.collidepoint(mouse_pos) else (230, 230, 230)
-        grid6_color = (100, 255, 100) if grid_size == 6 else (180, 230, 180) if grid6_rect.collidepoint(mouse_pos) else (230, 230, 230)
-        grid8_color = (100, 255, 100) if grid_size == 8 else (180, 230, 180) if grid8_rect.collidepoint(mouse_pos) else (230, 230, 230)
-        
-        pygame.draw.rect(screen, grid4_color, grid4_rect, border_radius=5)
-        pygame.draw.rect(screen, grid6_color, grid6_rect, border_radius=5)
-        pygame.draw.rect(screen, grid8_color, grid8_rect, border_radius=5)
-        
-        # Add border to selected grid size
-        if grid_size == 4:
-            pygame.draw.rect(screen, (0, 150, 0), grid4_rect, 3, border_radius=5)
-        if grid_size == 6:
-            pygame.draw.rect(screen, (0, 150, 0), grid6_rect, 3, border_radius=5)
-        if grid_size == 8:
-            pygame.draw.rect(screen, (0, 150, 0), grid8_rect, 3, border_radius=5)
-            
-        draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26, (0, 0, 0))
-        draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26, (0, 0, 0))
-        draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26, (0, 0, 0))
+        pygame.draw.rect(screen, (230, 230, 230), grid4_rect)
+        pygame.draw.rect(screen, (230, 230, 230), grid6_rect)
+        pygame.draw.rect(screen, (230, 230, 230), grid8_rect)
+        draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26)
+        draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26)
+        draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26)
 
         print_developer_name()
         pygame.display.flip()
@@ -145,45 +111,21 @@ def main_game():
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Play click sound for any button press
-                button_click_sound.play()
-                
                 if hvh_rect.collidepoint(event.pos):
                     game_mode = "human_vs_human"
-                    pygame.mixer.music.stop() 
                     selecting = False
                 elif hvai_rect.collidepoint(event.pos):
                     game_mode = "human_vs_ai"
-                    pygame.mixer.music.stop() 
                     selecting = False
                 elif aivai_rect.collidepoint(event.pos):
                     game_mode = "ai_vs_ai"
-                    pygame.mixer.music.stop() 
                     selecting = False
                 elif grid4_rect.collidepoint(event.pos):
                     grid_size = 4
-                    # Visual feedback - briefly change color
-                    pygame.draw.rect(screen, (150, 255, 150), grid4_rect, border_radius=5)
-                    pygame.draw.rect(screen, (0, 150, 0), grid4_rect, 3, border_radius=5)
-                    draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26, (0, 0, 0))
-                    pygame.display.flip()
-                    time.sleep(0.1)
                 elif grid6_rect.collidepoint(event.pos):
                     grid_size = 6
-                    # Visual feedback - briefly change color
-                    pygame.draw.rect(screen, (150, 255, 150), grid6_rect, border_radius=5)
-                    pygame.draw.rect(screen, (0, 150, 0), grid6_rect, 3, border_radius=5)
-                    draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26, (0, 0, 0))
-                    pygame.display.flip()
-                    time.sleep(0.1)
                 elif grid8_rect.collidepoint(event.pos):
                     grid_size = 8
-                    # Visual feedback - briefly change color
-                    pygame.draw.rect(screen, (150, 255, 150), grid8_rect, border_radius=5)
-                    pygame.draw.rect(screen, (0, 150, 0), grid8_rect, 3, border_radius=5)
-                    draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26, (0, 0, 0))
-                    pygame.display.flip()
-                    time.sleep(0.1)
 
         clock.tick(FPS)
 
@@ -600,10 +542,9 @@ def main_game():
             screen.blit(black_image, (best_move[0] * cell + shift_right, best_move[1] * cell + shift_down))
             pygame.display.flip()
             flip_animation(tmp, COMPUTER)
+            time.sleep(0.15)
             board[best_move[0]][best_move[1]] = COMPUTER
             turn = -turn
-            click_sound.play()  # ADDED: Sound for AI move
-            time.sleep(0.15)
 
     def handle_ai_mcts_move(iterations=MCTS_ITERATIONS):
         nonlocal turn
@@ -616,21 +557,15 @@ def main_game():
         screen.blit(black_image, (move[0] * cell + shift_right, move[1] * cell + shift_down))
         pygame.display.flip()
         flip_animation(tmp, COMPUTER)
+        time.sleep(0.12)
         board[move[0]][move[1]] = COMPUTER
         turn = -turn
-        click_sound.play()  # ADDED: Sound for AI move
-        time.sleep(0.12)
 
     # ---------- Main Game Loop ----------
     game_over = False
-    # Different delays for different modes
-    if game_mode == "ai_vs_ai":
-        ai_auto_delay = 1.2  # Increased delay for AI vs AI to make it more visible
-    else:
-        ai_auto_delay = 0.3  # Keep original delay for other modes
+    ai_auto_delay = 0.3  # seconds between automated AI moves for visibility
 
     last_ai_move_time = time.time()
-
     while not game_over:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -698,7 +633,6 @@ def main_game():
                             flip_animation(tmp, HUMAN)
                             board[best_move[0]][best_move[1]] = HUMAN
                             turn = -turn
-                            click_sound.play()  # ADDED: Play sound for AI move
                             last_ai_move_time = now
                     else:
                         # no moves -> pass
@@ -716,7 +650,6 @@ def main_game():
                             flip_animation(tmp, COMPUTER)
                             board[move[0]][move[1]] = COMPUTER
                             turn = -turn
-                            click_sound.play()  # ADDED: Play sound for AI move
                             last_ai_move_time = now
                     else:
                         turn = -turn
