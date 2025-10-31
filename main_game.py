@@ -210,8 +210,19 @@ def main_game():
     computer_y = 30
 
     def player_draw():
-        screen.blit(human_pic, (human_x, human_y))
-        screen.blit(computer_pic, (computer_x, computer_y))
+        # Display icons based on game mode
+        if game_mode == "human_vs_human":
+            # Show two human icons
+            screen.blit(human_pic, (human_x, human_y))
+            screen.blit(human_pic, (computer_x, computer_y))
+        elif game_mode == "human_vs_ai":
+            # Show human and robot
+            screen.blit(human_pic, (human_x, human_y))
+            screen.blit(computer_pic, (computer_x, computer_y))
+        elif game_mode == "ai_vs_ai":
+            # Show two robot icons
+            screen.blit(computer_pic, (human_x, human_y))
+            screen.blit(computer_pic, (computer_x, computer_y))
 
     def get_score():
         score_human = 0
@@ -630,6 +641,27 @@ def main_game():
         ai_auto_delay = 0.3  # Keep original delay for other modes
 
     last_ai_move_time = time.time()
+    
+    # Button to switch to AI vs AI mode
+    switch_to_ai_button_rect = pygame.Rect(900, 150, 150, 50)
+    
+    def draw_switch_button():
+        # Only show button in human_vs_human or human_vs_ai modes
+        if game_mode in ["human_vs_human", "human_vs_ai"]:
+            mouse_pos = pygame.mouse.get_pos()
+            if switch_to_ai_button_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (100, 200, 255), switch_to_ai_button_rect, border_radius=8)
+            else:
+                pygame.draw.rect(screen, (150, 220, 255), switch_to_ai_button_rect, border_radius=8)
+            pygame.draw.rect(screen, (0, 100, 200), switch_to_ai_button_rect, 2, border_radius=8)
+            
+            font = pygame.font.SysFont('freesansbold.ttf', 18)
+            text1 = font.render('Watch AI', True, (0, 0, 0))
+            text2 = font.render('Battle!', True, (0, 0, 0))
+            text_rect1 = text1.get_rect(center=(switch_to_ai_button_rect.centerx, switch_to_ai_button_rect.centery - 10))
+            text_rect2 = text2.get_rect(center=(switch_to_ai_button_rect.centerx, switch_to_ai_button_rect.centery + 10))
+            screen.blit(text1, text_rect1)
+            screen.blit(text2, text_rect2)
 
     while not game_over:
         for event in pygame.event.get():
@@ -638,6 +670,18 @@ def main_game():
                 sys.exit()
             # Human moves only accepted when appropriate
             if event.type == pygame.MOUSEBUTTONDOWN:
+                # Check if switch to AI button was clicked
+                if switch_to_ai_button_rect.collidepoint(event.pos) and game_mode in ["human_vs_human", "human_vs_ai"]:
+                    button_click_sound.play()
+                    game_mode = "ai_vs_ai"
+                    ai_auto_delay = 1.2  # Switch to AI vs AI delay
+                    last_ai_move_time = time.time()
+                    # Flash button feedback
+                    pygame.draw.rect(screen, (50, 255, 150), switch_to_ai_button_rect, border_radius=8)
+                    pygame.display.flip()
+                    time.sleep(0.15)
+                    continue  # Skip other mouse handling for this click
+                
                 if game_mode == "human_vs_human":
                     # both players are human; allow either to click but must be valid move
                     x, y = event.pos
@@ -756,6 +800,7 @@ def main_game():
                 current_valid = []
             draw_board(screen, current_valid)
             print_score()
+            draw_switch_button()  # Draw the switch button
             print_developer_name()
             pygame.display.flip()
 
@@ -781,15 +826,56 @@ def main_game():
         screen.fill((255, 255, 255))
         player_draw()
         print_score()
-        if score_human > score_computer:
-            image = winner_image
-            winner = "Human"
-        elif score_computer > score_human:
-            image = defeat_image
-            winner = "Computer"
-        else:
-            image = tie_image
-            winner = "Tie"
+        
+        # Determine winner message based on game mode
+        if game_mode == "human_vs_human":
+            if score_human > score_computer:
+                image = winner_image
+                winner = "Human 1"
+                winner_detail = "Human 1 Wins!"
+                border_color = (0, 255, 0)
+            elif score_computer > score_human:
+                image = winner_image
+                winner = "Human 2"
+                winner_detail = "Human 2 Wins!"
+                border_color = (0, 100, 255)
+            else:
+                image = tie_image
+                winner = "Tie"
+                winner_detail = "It's a Tie!"
+                border_color = (150, 150, 150)
+        elif game_mode == "human_vs_ai":
+            if score_human > score_computer:
+                image = winner_image
+                winner = "Human"
+                winner_detail = "Human Wins!"
+                border_color = (0, 255, 0)
+            elif score_computer > score_human:
+                image = defeat_image
+                winner = "Computer"
+                winner_detail = "AI Wins!"
+                border_color = (255, 0, 0)
+            else:
+                image = tie_image
+                winner = "Tie"
+                winner_detail = "It's a Tie!"
+                border_color = (150, 150, 150)
+        elif game_mode == "ai_vs_ai":
+            if score_human > score_computer:
+                image = winner_image
+                winner = "AI 1"
+                winner_detail = "AI 1 (Minimax) Wins!"
+                border_color = (0, 200, 255)
+            elif score_computer > score_human:
+                image = winner_image
+                winner = "AI 2"
+                winner_detail = "AI 2 (MCTS) Wins!"
+                border_color = (255, 100, 0)
+            else:
+                image = tie_image
+                winner = "Tie"
+                winner_detail = "It's a Tie!"
+                border_color = (150, 150, 150)
 
         # Card drawing
         card_width = 405
@@ -800,12 +886,21 @@ def main_game():
         image_y = card_y + (card_height - image.get_height()) // 2
 
         # Draw border and white card
-        if winner == "Human":
-            pygame.draw.rect(screen, (0, 255, 0), (card_x, card_y, card_width, card_height), 3)
-        elif winner == "Computer":
-            pygame.draw.rect(screen, (255, 0, 0), (card_x, card_y, card_width, card_height), 3)
+        pygame.draw.rect(screen, border_color, (card_x, card_y, card_width, card_height), 3)
         pygame.draw.rect(screen, (255, 255, 255), (card_x, card_y, card_width, card_height))
         screen.blit(image, (image_x, image_y))
+        
+        # Draw winner text on card
+        winner_font = pygame.font.SysFont('freesansbold.ttf', 32, bold=True)
+        winner_text = winner_font.render(winner_detail, True, (0, 0, 0))
+        winner_text_rect = winner_text.get_rect(center=(card_x + card_width // 2, image_y + image.get_height() + 30))
+        screen.blit(winner_text, winner_text_rect)
+        
+        # Draw final score on card
+        score_font = pygame.font.SysFont('freesansbold.ttf', 24)
+        score_text = score_font.render(f'Final Score: {score_human} - {score_computer}', True, (50, 50, 50))
+        score_text_rect = score_text.get_rect(center=(card_x + card_width // 2, winner_text_rect.bottom + 25))
+        screen.blit(score_text, score_text_rect)
 
         # Buttons
         screen.blit(replay_img, (850, 50))
