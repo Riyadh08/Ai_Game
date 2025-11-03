@@ -20,7 +20,7 @@ button_click_sound = pygame.mixer.Sound(r"music\user_move.wav")  # Using same so
 FPS = 60
 
 # MCTS parameters
-MCTS_ITERATIONS = 300  # iterations per MCTS move (adjustable)
+MCTS_ITERATIONS = 500  # iterations per MCTS move (increased for better performance)
 MCTS_SIMULATION_DEPTH = 60  # cap for playout length
 
 # ---------- Utility / Game logic ----------
@@ -45,6 +45,13 @@ def main_game():
     grid_size = 8  # default; changed by selection
     selecting = True
     game_mode = None  # "human_vs_human", "human_vs_ai", "ai_vs_ai"
+    game_ready = False  # Flag to indicate when to start the game
+    
+    # AI algorithm and player selection
+    human_color = HUMAN  # For human_vs_ai: which side human plays (HUMAN=1=white, COMPUTER=-1=black)
+    ai_algorithm = "minimax"  # For human_vs_ai: which algorithm AI uses
+    white_algorithm = "minimax"  # For ai_vs_ai: algorithm for white/player1
+    black_algorithm = "mcts"  # For ai_vs_ai: algorithm for black/player2
 
     # Helper to draw text
     def draw_text(center_x, center_y, text, size=28, color=(0, 0, 0)):
@@ -68,125 +75,320 @@ def main_game():
         screen.blit(text2, textRect2)
 
     # --- Menu Loop: choose mode + grid size ---
-    while selecting:
-        screen.fill((255, 255, 255))
-        # Background image (keep)
-        try:
-            back_ground = pygame.image.load(r"Image/First_Page.png")
-            screen.blit(back_ground, (0, 0))
-        except:
-            # fallback if image missing
-            pass
+    while not game_ready:
+        # Main menu selection
+        while selecting:
+            screen.fill((255, 255, 255))
+            # Background image (keep)
+            try:
+                back_ground = pygame.image.load(r"Image/First_Page.png")
+                screen.blit(back_ground, (0, 0))
+            except:
+                # fallback if image missing
+                pass
 
-        # Mode buttons rectangles
-        hvh_rect = pygame.Rect(320, 260, 440, 60)
-        hvai_rect = pygame.Rect(320, 340, 440, 60)
-        aivai_rect = pygame.Rect(320, 420, 440, 60)
+            # Mode buttons rectangles
+            hvh_rect = pygame.Rect(320, 260, 440, 60)
+            hvai_rect = pygame.Rect(320, 340, 440, 60)
+            aivai_rect = pygame.Rect(320, 420, 440, 60)
 
-        # Draw mode buttons with hover effect
-        mouse_pos = pygame.mouse.get_pos()
-        
-        # Human vs Human button
-        if hvh_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (180, 230, 180), hvh_rect, border_radius=8)
-        else:
-            pygame.draw.rect(screen, (200, 200, 200), hvh_rect, border_radius=8)
-        
-        # Human vs AI button  
-        if hvai_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (180, 230, 180), hvai_rect, border_radius=8)
-        else:
-            pygame.draw.rect(screen, (200, 200, 200), hvai_rect, border_radius=8)
-        
-        # AI vs AI button
-        if aivai_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(screen, (180, 230, 180), aivai_rect, border_radius=8)
-        else:
-            pygame.draw.rect(screen, (200, 200, 200), aivai_rect, border_radius=8)
-
-        draw_text(540, 290, "Human  vs  Human", 32)
-        draw_text(540, 370, "Human  vs  AI (Minimax)", 32)
-        draw_text(540, 450, "AI  vs  AI (Minimax vs MCTS)", 32)
-
-        # Grid selection
-        draw_text(540, 530, "Choose Grid Size: 4   6   8 (Click icons below)", 22)
-        
-        # Grid selection buttons with visual feedback
-        grid4_rect = pygame.Rect(420, 560, 70, 40)
-        grid6_rect = pygame.Rect(500, 560, 70, 40)
-        grid8_rect = pygame.Rect(580, 560, 70, 40)
-        
-        # Draw grid buttons with selection feedback
-        grid4_color = (100, 255, 100) if grid_size == 4 else (180, 230, 180) if grid4_rect.collidepoint(mouse_pos) else (230, 230, 230)
-        grid6_color = (100, 255, 100) if grid_size == 6 else (180, 230, 180) if grid6_rect.collidepoint(mouse_pos) else (230, 230, 230)
-        grid8_color = (100, 255, 100) if grid_size == 8 else (180, 230, 180) if grid8_rect.collidepoint(mouse_pos) else (230, 230, 230)
-        
-        pygame.draw.rect(screen, grid4_color, grid4_rect, border_radius=5)
-        pygame.draw.rect(screen, grid6_color, grid6_rect, border_radius=5)
-        pygame.draw.rect(screen, grid8_color, grid8_rect, border_radius=5)
-        
-        # Add border to selected grid size
-        if grid_size == 4:
-            pygame.draw.rect(screen, (0, 150, 0), grid4_rect, 3, border_radius=5)
-        if grid_size == 6:
-            pygame.draw.rect(screen, (0, 150, 0), grid6_rect, 3, border_radius=5)
-        if grid_size == 8:
-            pygame.draw.rect(screen, (0, 150, 0), grid8_rect, 3, border_radius=5)
+            # Draw mode buttons with hover effect
+            mouse_pos = pygame.mouse.get_pos()
             
-        draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26, (0, 0, 0))
-        draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26, (0, 0, 0))
-        draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26, (0, 0, 0))
+            # Human vs Human button
+            if hvh_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (180, 230, 180), hvh_rect, border_radius=8)
+            else:
+                pygame.draw.rect(screen, (200, 200, 200), hvh_rect, border_radius=8)
+            
+            # Human vs AI button  
+            if hvai_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (180, 230, 180), hvai_rect, border_radius=8)
+            else:
+                pygame.draw.rect(screen, (200, 200, 200), hvai_rect, border_radius=8)
+            
+            # AI vs AI button
+            if aivai_rect.collidepoint(mouse_pos):
+                pygame.draw.rect(screen, (180, 230, 180), aivai_rect, border_radius=8)
+            else:
+                pygame.draw.rect(screen, (200, 200, 200), aivai_rect, border_radius=8)
 
-        print_developer_name()
-        pygame.display.flip()
+            draw_text(540, 290, "Human  vs  Human", 32)
+            draw_text(540, 370, "Human  vs  AI", 32)
+            draw_text(540, 450, "AI  vs  AI", 32)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Play click sound for any button press
-                button_click_sound.play()
+            # Grid selection
+            draw_text(540, 530, "Choose Grid Size: 4   6   8 (Click icons below)", 22)
+            
+            # Grid selection buttons with visual feedback
+            grid4_rect = pygame.Rect(420, 560, 70, 40)
+            grid6_rect = pygame.Rect(500, 560, 70, 40)
+            grid8_rect = pygame.Rect(580, 560, 70, 40)
+            
+            # Draw grid buttons with selection feedback
+            grid4_color = (100, 255, 100) if grid_size == 4 else (180, 230, 180) if grid4_rect.collidepoint(mouse_pos) else (230, 230, 230)
+            grid6_color = (100, 255, 100) if grid_size == 6 else (180, 230, 180) if grid6_rect.collidepoint(mouse_pos) else (230, 230, 230)
+            grid8_color = (100, 255, 100) if grid_size == 8 else (180, 230, 180) if grid8_rect.collidepoint(mouse_pos) else (230, 230, 230)
+            
+            pygame.draw.rect(screen, grid4_color, grid4_rect, border_radius=5)
+            pygame.draw.rect(screen, grid6_color, grid6_rect, border_radius=5)
+            pygame.draw.rect(screen, grid8_color, grid8_rect, border_radius=5)
+            
+            # Add border to selected grid size
+            if grid_size == 4:
+                pygame.draw.rect(screen, (0, 150, 0), grid4_rect, 3, border_radius=5)
+            if grid_size == 6:
+                pygame.draw.rect(screen, (0, 150, 0), grid6_rect, 3, border_radius=5)
+            if grid_size == 8:
+                pygame.draw.rect(screen, (0, 150, 0), grid8_rect, 3, border_radius=5)
                 
-                if hvh_rect.collidepoint(event.pos):
-                    game_mode = "human_vs_human"
-                    pygame.mixer.music.stop() 
-                    selecting = False
-                elif hvai_rect.collidepoint(event.pos):
-                    game_mode = "human_vs_ai"
-                    pygame.mixer.music.stop() 
-                    selecting = False
-                elif aivai_rect.collidepoint(event.pos):
-                    game_mode = "ai_vs_ai"
-                    pygame.mixer.music.stop() 
-                    selecting = False
-                elif grid4_rect.collidepoint(event.pos):
-                    grid_size = 4
-                    # Visual feedback - briefly change color
-                    pygame.draw.rect(screen, (150, 255, 150), grid4_rect, border_radius=5)
-                    pygame.draw.rect(screen, (0, 150, 0), grid4_rect, 3, border_radius=5)
-                    draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26, (0, 0, 0))
-                    pygame.display.flip()
-                    time.sleep(0.1)
-                elif grid6_rect.collidepoint(event.pos):
-                    grid_size = 6
-                    # Visual feedback - briefly change color
-                    pygame.draw.rect(screen, (150, 255, 150), grid6_rect, border_radius=5)
-                    pygame.draw.rect(screen, (0, 150, 0), grid6_rect, 3, border_radius=5)
-                    draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26, (0, 0, 0))
-                    pygame.display.flip()
-                    time.sleep(0.1)
-                elif grid8_rect.collidepoint(event.pos):
-                    grid_size = 8
-                    # Visual feedback - briefly change color
-                    pygame.draw.rect(screen, (150, 255, 150), grid8_rect, border_radius=5)
-                    pygame.draw.rect(screen, (0, 150, 0), grid8_rect, 3, border_radius=5)
-                    draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26, (0, 0, 0))
-                    pygame.display.flip()
-                    time.sleep(0.1)
+            draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26, (0, 0, 0))
+            draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26, (0, 0, 0))
+            draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26, (0, 0, 0))
 
-        clock.tick(FPS)
+            print_developer_name()
+            pygame.display.flip()
 
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    # Play click sound for any button press
+                    button_click_sound.play()
+                    
+                    if hvh_rect.collidepoint(event.pos):
+                        game_mode = "human_vs_human"
+                        pygame.mixer.music.stop() 
+                        selecting = False
+                    elif hvai_rect.collidepoint(event.pos):
+                        game_mode = "human_vs_ai"
+                        # Don't stop selecting yet - need to choose color and AI
+                        selecting = False
+                    elif aivai_rect.collidepoint(event.pos):
+                        game_mode = "ai_vs_ai"
+                        # Don't stop selecting yet - need to choose algorithms
+                        selecting = False
+                    elif grid4_rect.collidepoint(event.pos):
+                        grid_size = 4
+                        # Visual feedback - briefly change color
+                        pygame.draw.rect(screen, (150, 255, 150), grid4_rect, border_radius=5)
+                        pygame.draw.rect(screen, (0, 150, 0), grid4_rect, 3, border_radius=5)
+                        draw_text(grid4_rect.centerx, grid4_rect.centery, "4", 26, (0, 0, 0))
+                        pygame.display.flip()
+                        time.sleep(0.1)
+                    elif grid6_rect.collidepoint(event.pos):
+                        grid_size = 6
+                        # Visual feedback - briefly change color
+                        pygame.draw.rect(screen, (150, 255, 150), grid6_rect, border_radius=5)
+                        pygame.draw.rect(screen, (0, 150, 0), grid6_rect, 3, border_radius=5)
+                        draw_text(grid6_rect.centerx, grid6_rect.centery, "6", 26, (0, 0, 0))
+                        pygame.display.flip()
+                        time.sleep(0.1)
+                    elif grid8_rect.collidepoint(event.pos):
+                        grid_size = 8
+                        # Visual feedback - briefly change color
+                        pygame.draw.rect(screen, (150, 255, 150), grid8_rect, border_radius=5)
+                        pygame.draw.rect(screen, (0, 150, 0), grid8_rect, 3, border_radius=5)
+                        draw_text(grid8_rect.centerx, grid8_rect.centery, "8", 26, (0, 0, 0))
+                        pygame.display.flip()
+                        time.sleep(0.1)
+
+            clock.tick(FPS)
+
+        # --- Second Menu: Algorithm and Color Selection (for human_vs_ai and ai_vs_ai) ---
+        if game_mode in ["human_vs_ai", "ai_vs_ai"]:
+            selecting_options = True
+            
+            while selecting_options:
+                screen.fill((255, 255, 255))
+                try:
+                    back_ground = pygame.image.load(r"Image/First_Page.png")
+                    screen.blit(back_ground, (0, 0))
+                except:
+                    pass
+                
+                mouse_pos = pygame.mouse.get_pos()
+                
+                if game_mode == "human_vs_ai":
+                    # Human vs AI: Choose color and AI algorithm
+                    draw_text(540, 150, "Human vs AI Setup", 36, (0, 100, 200))
+                    
+                    # Color selection
+                    draw_text(540, 220, "Choose Your Color:", 28)
+                    white_btn = pygame.Rect(380, 250, 140, 50)
+                    black_btn = pygame.Rect(560, 250, 140, 50)
+                    
+                    # Color buttons
+                    if human_color == HUMAN:
+                        pygame.draw.rect(screen, (100, 255, 100), white_btn, border_radius=8)
+                        pygame.draw.rect(screen, (0, 150, 0), white_btn, 3, border_radius=8)
+                    else:
+                        col = (180, 230, 180) if white_btn.collidepoint(mouse_pos) else (220, 220, 220)
+                        pygame.draw.rect(screen, col, white_btn, border_radius=8)
+                    
+                    if human_color == COMPUTER:
+                        pygame.draw.rect(screen, (100, 255, 100), black_btn, border_radius=8)
+                        pygame.draw.rect(screen, (0, 150, 0), black_btn, 3, border_radius=8)
+                    else:
+                        col = (180, 230, 180) if black_btn.collidepoint(mouse_pos) else (220, 220, 220)
+                        pygame.draw.rect(screen, col, black_btn, border_radius=8)
+                    
+                    draw_text(white_btn.centerx, white_btn.centery, "White", 24)
+                    draw_text(black_btn.centerx, black_btn.centery, "Black", 24)
+                    
+                    # AI Algorithm selection
+                    draw_text(540, 340, "Choose AI Algorithm:", 28)
+                    greedy_btn = pygame.Rect(280, 380, 160, 50)
+                    minimax_btn = pygame.Rect(460, 380, 160, 50)
+                    mcts_btn = pygame.Rect(640, 380, 160, 50)
+                    
+                    # AI algorithm buttons
+                    for btn, name in [(greedy_btn, "greedy"), (minimax_btn, "minimax"), (mcts_btn, "mcts")]:
+                        if ai_algorithm == name:
+                            pygame.draw.rect(screen, (100, 200, 255), btn, border_radius=8)
+                            pygame.draw.rect(screen, (0, 100, 200), btn, 3, border_radius=8)
+                        else:
+                            col = (150, 210, 255) if btn.collidepoint(mouse_pos) else (200, 220, 240)
+                            pygame.draw.rect(screen, col, btn, border_radius=8)
+                    
+                    draw_text(greedy_btn.centerx, greedy_btn.centery, "Greedy", 22)
+                    draw_text(minimax_btn.centerx, minimax_btn.centery, "Minimax", 22)
+                    draw_text(mcts_btn.centerx, mcts_btn.centery, "MCTS", 22)
+                    
+                    # Difficulty labels
+                    #draw_text(greedy_btn.centerx, greedy_btn.bottom + 15, "(Easy)", 16, (100, 100, 100))
+                    #draw_text(minimax_btn.centerx, minimax_btn.bottom + 15, "(Medium)", 16, (100, 100, 100))
+                    #draw_text(mcts_btn.centerx, mcts_btn.bottom + 15, "(Hard)", 16, (100, 100, 100))
+                    
+                    # Start button
+                    start_btn = pygame.Rect(440, 500, 200, 60)
+                    col = (100, 255, 100) if start_btn.collidepoint(mouse_pos) else (150, 255, 150)
+                    pygame.draw.rect(screen, col, start_btn, border_radius=10)
+                    pygame.draw.rect(screen, (0, 150, 0), start_btn, 3, border_radius=10)
+                    draw_text(start_btn.centerx, start_btn.centery, "START GAME", 28, (0, 100, 0))
+                    
+                    # Back button
+                    back_btn = pygame.Rect(240, 500, 150, 60)
+                    col = (255, 150, 150) if back_btn.collidepoint(mouse_pos) else (255, 200, 200)
+                    pygame.draw.rect(screen, col, back_btn, border_radius=10)
+                    pygame.draw.rect(screen, (200, 0, 0), back_btn, 3, border_radius=10)
+                    draw_text(back_btn.centerx, back_btn.centery, "BACK", 28, (150, 0, 0))
+                    
+                elif game_mode == "ai_vs_ai":
+                    # AI vs AI: Choose algorithms for both sides
+                    draw_text(540, 150, "AI vs AI Setup", 36, (0, 100, 200))
+                    
+                    # White side algorithm
+                    draw_text(540, 220, "White Side Algorithm:", 28)
+                    w_greedy_btn = pygame.Rect(280, 250, 160, 50)
+                    w_minimax_btn = pygame.Rect(460, 250, 160, 50)
+                    w_mcts_btn = pygame.Rect(640, 250, 160, 50)
+                    
+                    for btn, name in [(w_greedy_btn, "greedy"), (w_minimax_btn, "minimax"), (w_mcts_btn, "mcts")]:
+                        if white_algorithm == name:
+                            pygame.draw.rect(screen, (255, 220, 100), btn, border_radius=8)
+                            pygame.draw.rect(screen, (200, 150, 0), btn, 3, border_radius=8)
+                        else:
+                            col = (255, 240, 180) if btn.collidepoint(mouse_pos) else (240, 230, 210)
+                            pygame.draw.rect(screen, col, btn, border_radius=8)
+                    
+                    draw_text(w_greedy_btn.centerx, w_greedy_btn.centery, "Greedy", 22)
+                    draw_text(w_minimax_btn.centerx, w_minimax_btn.centery, "Minimax", 22)
+                    draw_text(w_mcts_btn.centerx, w_mcts_btn.centery, "MCTS", 22)
+                    
+                    # Black side algorithm
+                    draw_text(540, 340, "Black Side Algorithm:", 28)
+                    b_greedy_btn = pygame.Rect(280, 370, 160, 50)
+                    b_minimax_btn = pygame.Rect(460, 370, 160, 50)
+                    b_mcts_btn = pygame.Rect(640, 370, 160, 50)
+                    
+                    for btn, name in [(b_greedy_btn, "greedy"), (b_minimax_btn, "minimax"), (b_mcts_btn, "mcts")]:
+                        if black_algorithm == name:
+                            pygame.draw.rect(screen, (180, 180, 180), btn, border_radius=8)
+                            pygame.draw.rect(screen, (80, 80, 80), btn, 3, border_radius=8)
+                        else:
+                            col = (200, 200, 200) if btn.collidepoint(mouse_pos) else (230, 230, 230)
+                            pygame.draw.rect(screen, col, btn, border_radius=8)
+                    
+                    draw_text(b_greedy_btn.centerx, b_greedy_btn.centery, "Greedy", 22)
+                    draw_text(b_minimax_btn.centerx, b_minimax_btn.centery, "Minimax", 22)
+                    draw_text(b_mcts_btn.centerx, b_mcts_btn.centery, "MCTS", 22)
+                    
+                    # Start button
+                    start_btn = pygame.Rect(440, 480, 200, 60)
+                    col = (100, 255, 100) if start_btn.collidepoint(mouse_pos) else (150, 255, 150)
+                    pygame.draw.rect(screen, col, start_btn, border_radius=10)
+                    pygame.draw.rect(screen, (0, 150, 0), start_btn, 3, border_radius=10)
+                    draw_text(start_btn.centerx, start_btn.centery, "START GAME", 28, (0, 100, 0))
+                    
+                    # Back button
+                    back_btn = pygame.Rect(240, 480, 150, 60)
+                    col = (255, 150, 150) if back_btn.collidepoint(mouse_pos) else (255, 200, 200)
+                    pygame.draw.rect(screen, col, back_btn, border_radius=10)
+                    pygame.draw.rect(screen, (200, 0, 0), back_btn, 3, border_radius=10)
+                    draw_text(back_btn.centerx, back_btn.centery, "BACK", 28, (150, 0, 0))
+                
+                print_developer_name()
+                pygame.display.flip()
+                
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        button_click_sound.play()
+                        
+                        if game_mode == "human_vs_ai":
+                            if white_btn.collidepoint(event.pos):
+                                human_color = HUMAN
+                            elif black_btn.collidepoint(event.pos):
+                                human_color = COMPUTER
+                            elif greedy_btn.collidepoint(event.pos):
+                                ai_algorithm = "greedy"
+                            elif minimax_btn.collidepoint(event.pos):
+                                ai_algorithm = "minimax"
+                            elif mcts_btn.collidepoint(event.pos):
+                                ai_algorithm = "mcts"
+                            elif start_btn.collidepoint(event.pos):
+                                selecting_options = False
+                                pygame.mixer.music.stop()
+                                game_ready = True  # Ready to start game
+                            elif back_btn.collidepoint(event.pos):
+                                # Go back to main menu
+                                selecting_options = False
+                                selecting = True
+                                game_mode = None
+                        
+                        elif game_mode == "ai_vs_ai":
+                            if w_greedy_btn.collidepoint(event.pos):
+                                white_algorithm = "greedy"
+                            elif w_minimax_btn.collidepoint(event.pos):
+                                white_algorithm = "minimax"
+                            elif w_mcts_btn.collidepoint(event.pos):
+                                white_algorithm = "mcts"
+                            elif b_greedy_btn.collidepoint(event.pos):
+                                black_algorithm = "greedy"
+                            elif b_minimax_btn.collidepoint(event.pos):
+                                black_algorithm = "minimax"
+                            elif b_mcts_btn.collidepoint(event.pos):
+                                black_algorithm = "mcts"
+                            elif start_btn.collidepoint(event.pos):
+                                selecting_options = False
+                                pygame.mixer.music.stop()
+                                game_ready = True  # Ready to start game
+                            elif back_btn.collidepoint(event.pos):
+                                # Go back to main menu
+                                selecting_options = False
+                                selecting = True
+                                game_mode = None
+                
+                clock.tick(FPS)
+        else:
+            # Human vs Human - no algorithm selection needed
+            pygame.mixer.music.stop()
+            game_ready = True
+    
     # --- Setup board and images ---
     square_size = 80
     board = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
@@ -216,9 +418,17 @@ def main_game():
             screen.blit(human_pic, (human_x, human_y))
             screen.blit(human_pic, (computer_x, computer_y))
         elif game_mode == "human_vs_ai":
-            # Show human and robot
-            screen.blit(human_pic, (human_x, human_y))
-            screen.blit(computer_pic, (computer_x, computer_y))
+            # Show human and robot based on chosen color
+            # human_x is for white/left side (HUMAN = 1)
+            # computer_x is for black/right side (COMPUTER = -1)
+            if human_color == HUMAN:
+                # Human chose white, AI is black
+                screen.blit(human_pic, (human_x, human_y))
+                screen.blit(computer_pic, (computer_x, computer_y))
+            else:
+                # Human chose black, AI is white
+                screen.blit(computer_pic, (human_x, human_y))
+                screen.blit(human_pic, (computer_x, computer_y))
         elif game_mode == "ai_vs_ai":
             # Show two robot icons
             screen.blit(computer_pic, (human_x, human_y))
@@ -274,7 +484,7 @@ def main_game():
             screen.blit(show_move_image, (x * cell + shift_right + (cell - show_move_image.get_width()) // 2,
                                           y * cell + shift_down + (cell - show_move_image.get_height()) // 2))
 
-    # Valid moves & flipping logic (kept consistent with original)
+    # Returns list of all valid move coordinates
     def get_valid_moves(board_state, player):
         val_m = []
         for i in range(grid_size):
@@ -284,6 +494,7 @@ def main_game():
                         val_m.append((i, j))
         return val_m
 
+    # Returns True if valid move found in any direction, False otherwise
     def is_valid_move(board_state, x, y, player):
         for dx in range(-1, 2):
             for dy in range(-1, 2):
@@ -388,10 +599,14 @@ def main_game():
                     score -= 1
         return score
 
-    # ---------- Minimax (kept largely as original) ----------
+    # ---------- Minimax with Heuristic Evaluation ----------
     def minimax(board_state, depth, player, alpha, beta, max_depth):
         if depth == 0 or is_game_over(board_state) or depth == max_depth:
-            return calc_score(board_state, -1)
+            # Enhanced evaluation: coin count + positional heuristic
+            coin_score = calc_score(board_state, player)
+            position_score = heuristic_evaluation(board_state, player)
+            # Weight the heuristic (0.3 factor for balance)
+            return coin_score + position_score * 0.3
 
         if player == -1:
             b_s = float('inf')
@@ -431,14 +646,14 @@ def main_game():
 
     # ---------- MCTS Implementation ----------
     class MCTSNode:
-        def __init__(self, board_state, player, parent=None, move=None):
+        def __init__(self, board_state, player, parent=None, move=None, original_player=None):
             self.board = deep_copy(board_state)
             self.player = player  # player who will move at this node
             self.parent = parent
             self.move = move  # move that led to this node (x,y)
             self.children = []
             self.visits = 0
-            self.wins = 0.0  # from perspective of the player that just moved?
+            self.wins = 0.0  # from perspective of original_player (the AI making the decision)
 
         def is_fully_expanded(self):
             possible = get_valid_moves(self.board, self.player)
@@ -447,17 +662,18 @@ def main_game():
         def uct_score(self, c=1.41):
             if self.visits == 0:
                 return float('inf')
-            # wins are stored from POV of the player who just moved (parent.player)
-            return (self.wins / self.visits) + c * math.sqrt(math.log(self.parent.visits) / self.visits) if self.parent else float('inf')
+            
+            if self.parent is None:
+                # Root node
+                return self.wins / self.visits if self.visits > 0 else 0
+            
+            # Pure UCT formula: exploitation + exploration (no heuristic bias)
+            exploitation = self.wins / self.visits
+            exploration = c * math.sqrt(math.log(self.parent.visits) / self.visits)
+            return exploitation + exploration
 
-    def mcts_select(node):
-        # select child with highest UCT
-        while node.children:
-            # pick child with highest UCT
-            node = max(node.children, key=lambda n: n.uct_score())
-        return node
-
-    def mcts_expand(node):
+    # Returns the new child node or None if no new moves available
+    def mcts_expand(node, original_player=None):
         moves = get_valid_moves(node.board, node.player)
         tried = [child.move for child in node.children]
         for move in moves:
@@ -465,48 +681,78 @@ def main_game():
                 # create new child for this move
                 new_board = flip_pieces(deep_copy(node.board), move[0], move[1], node.player)
                 new_board[move[0]][move[1]] = node.player
-                child = MCTSNode(new_board, -node.player, parent=node, move=move)
+                child = MCTSNode(new_board, -node.player, parent=node, move=move, original_player=original_player)
                 node.children.append(child)
                 return child
         return None
 
+    # Returns result (HUMAN/COMPUTER/0) based on:
+    # > Final score if game completed
+    # > Heuristic evaluation if depth limit reached
     def random_playout(board_state, player, depth_limit=MCTS_SIMULATION_DEPTH):
+        """
+        Pure random playout with heuristic evaluation at depth limit
+        - Plays random moves up to depth_limit
+        - If depth limit reached: evaluate position heuristically
+        - If game ends naturally: use actual winner
+        """
         b = deep_copy(board_state)
         p = player
         count = 0
+        
         while not is_game_over(b) and count < depth_limit:
             moves = get_valid_moves(b, p)
             if not moves:
                 p = -p
-                # if both have no moves loop will exit due to is_game_over
                 count += 1
                 continue
+            
+            # Pure random selection
             mv = random.choice(moves)
+            
             b = flip_pieces(b, mv[0], mv[1], p)
             b[mv[0]][mv[1]] = p
             p = -p
             count += 1
-        # final score from COMPUTER perspective (-1) --> we want >0 good for COMPUTER
-        final_score = get_score_static(b)
-        # return winner: 1 -> HUMAN, -1 -> COMPUTER, 0 -> tie
-        if final_score[0] > final_score[1]:
-            return HUMAN
-        elif final_score[1] > final_score[0]:
-            return COMPUTER
-        return 0
+        
+        # Determine winner
+        if is_game_over(b):
+            # Game ended naturally - use actual score
+            final_score = get_score_static(b)
+            if final_score[0] > final_score[1]:
+                return HUMAN
+            elif final_score[1] > final_score[0]:
+                return COMPUTER
+            return 0
+        else:
+            # Depth limit reached - use heuristic evaluation
+            # Evaluate from both perspectives and determine predicted winner
+            eval_white = calc_score(b, HUMAN) + heuristic_evaluation(b, HUMAN) * 0.3
+            eval_black = calc_score(b, COMPUTER) + heuristic_evaluation(b, COMPUTER) * 0.3
+            
+            if eval_white > eval_black:
+                return HUMAN
+            elif eval_black > eval_white:
+                return COMPUTER
+            return 0
 
-    def backpropagate(node, result):
-        # result is winner (HUMAN/COMPUTER/0)
+    # Updates statistics up the tree after simulation
+    def backpropagate(node, result, original_player):
+        """
+        Backpropagate wins from the perspective of original_player (the AI making the decision)
+        Every node stores wins from original_player's perspective
+        """
         while node is not None:
             node.visits += 1
-            # if the result is a win for the player who just moved into this node's parent,
-            # increment wins. We'll store wins as +1 for a COMPUTER win, -1 for HUMAN win.
-            if result == COMPUTER:
-                node.wins += 1
-            elif result == HUMAN:
-                node.wins += 0  # count wins as 0 for human if we only reward COMPUTER?
-                # For balanced statistics, we could do node.wins += (1 if result == node.player else 0)
-                # But for simple selection we reward COMPUTER wins.
+            
+            # Always update from original_player's perspective
+            if result == original_player:
+                node.wins += 1.0  # AI won - reward!
+            elif result == -original_player:
+                node.wins += 0.0  # AI lost - punishment (no reward)
+            else:
+                node.wins += 0.5  # Tie - partial reward
+            
             node = node.parent
 
     def get_score_static(board_state):
@@ -520,8 +766,9 @@ def main_game():
                     s_c += 1
         return (s_h, s_c)
 
+    # Returns best move based on most visited child
     def mcts_move(root_board, player, iterations=MCTS_ITERATIONS):
-        root = MCTSNode(root_board, player)
+        root = MCTSNode(root_board, player, original_player=player)
         for _ in range(iterations):
             # 1. Selection
             node = root
@@ -530,7 +777,7 @@ def main_game():
 
             # 2. Expansion
             if not is_game_over(node.board):
-                child = mcts_expand(node)
+                child = mcts_expand(node, original_player=player)
                 if child:
                     node = child
 
@@ -539,7 +786,7 @@ def main_game():
             result = random_playout(node.board, node.player)
 
             # 4. Backpropagation
-            backpropagate(node, result)
+            backpropagate(node, result, original_player=player)
 
         # pick child with max visits or max wins
         if not root.children:
@@ -572,51 +819,32 @@ def main_game():
                     total -= position_value(i, j)
         return total
 
-    # ---------- Handlers for moves ----------
-    def handle_human_click(mouse_pos):
-        nonlocal turn
-        x, y = mouse_pos
-        x -= shift_right
-        y -= shift_down
-        i, j = int(x // square_size), int(y // square_size)
-        if 0 <= i < grid_size and 0 <= j < grid_size:
-            if (i, j) in get_valid_moves(board, HUMAN):
-                tmp = flip_piecehuman(i, j, HUMAN)
-                screen.blit(white_image, (i * cell + shift_right, j * cell + shift_down))
-                pygame.display.flip()
-                flip_animation(tmp, HUMAN)
-                board[i][j] = HUMAN
-                turn = -turn
-                click_sound.play()
-                time.sleep(0.15)
-
-    def handle_ai_minimax_move(depth=4):
-        nonlocal turn
-        Ai_moves = get_valid_moves(board, COMPUTER)
-        if not Ai_moves:
-            turn = -turn
-            return
-        b_s = float('-inf')
+    # ---------- Greedy AI Algorithm ----------
+    def greedy_move(board_state, player):
+        """
+        Greedy AI: Chooses move with best immediate heuristic value
+        (coin count + positional advantage)
+        """
+        valid_moves = get_valid_moves(board_state, player)
+        if not valid_moves:
+            return None
+        
         best_move = None
-        for move in Ai_moves:
-            temp_board = deep_copy(board)
-            flipped_board = flip_pieces(temp_board, move[0], move[1], COMPUTER)
-            flipped_board[move[0]][move[1]] = COMPUTER
-            score = minimax(flipped_board, depth - 1, -COMPUTER, float('-inf'), float('inf'), depth)
-            if score >= b_s:
-                b_s = score
+        best_score = float('-inf')
+        
+        for move in valid_moves:
+            # Simulate the move
+            temp_board = flip_pieces(deep_copy(board_state), move[0], move[1], player)
+            temp_board[move[0]][move[1]] = player
+            
+            # Evaluate based on coin count + position value
+            score = calc_score(temp_board, player) + heuristic_evaluation(temp_board, player) * 0.1
+            
+            if score > best_score:
+                best_score = score
                 best_move = move
-        if best_move is not None:
-            tmp = flip_piecehuman(best_move[0], best_move[1], COMPUTER)
-            screen.blit(black_image, (best_move[0] * cell + shift_right, best_move[1] * cell + shift_down))
-            pygame.display.flip()
-            flip_animation(tmp, COMPUTER)
-            board[best_move[0]][best_move[1]] = COMPUTER
-            turn = -turn
-            click_sound.play()  # ADDED: Sound for AI move
-            time.sleep(0.15)
-
-    def handle_ai_mcts_move(iterations=MCTS_ITERATIONS):
+        
+        return best_move
         nonlocal turn
         move = mcts_move(board, COMPUTER, iterations=iterations)
         if move is None:
@@ -631,6 +859,117 @@ def main_game():
         turn = -turn
         click_sound.play()  # ADDED: Sound for AI move
         time.sleep(0.12)
+
+    # ---------- Universal AI Move Handler ----------
+    def handle_ai_move(player, algorithm):
+        """
+        Universal AI move handler
+        player: HUMAN (1) or COMPUTER (-1)
+        algorithm: "greedy", "minimax", or "mcts"
+        """
+        nonlocal turn
+        
+        # Check if player has valid moves first
+        valid_moves = get_valid_moves(board, player)
+        if not valid_moves:
+            # No valid moves - must pass turn
+            show_pass_message(player, algorithm)
+            turn = -turn
+            return
+        
+        # Get the move based on algorithm
+        if algorithm == "greedy":
+            move = greedy_move(board, player)
+        elif algorithm == "minimax":
+            # Use minimax
+            b_s = float('-inf')
+            move = None
+            for m in valid_moves:
+                temp_board = deep_copy(board)
+                flipped_board = flip_pieces(temp_board, m[0], m[1], player)
+                flipped_board[m[0]][m[1]] = player
+                score = minimax(flipped_board, 3, -player, float('-inf'), float('inf'), 4)
+                if score >= b_s:
+                    b_s = score
+                    move = m
+        elif algorithm == "mcts":
+            move = mcts_move(board, player, iterations=MCTS_ITERATIONS)
+        else:
+            move = None
+        
+        # Execute the move if valid
+        if move is None:
+            # Algorithm failed to find move (shouldn't happen if valid_moves exists)
+            show_pass_message(player, algorithm)
+            turn = -turn
+            return
+        
+        tmp = flip_piecehuman(move[0], move[1], player)
+        img = white_image if player == HUMAN else black_image
+        screen.blit(img, (move[0] * cell + shift_right, move[1] * cell + shift_down))
+        pygame.display.flip()
+        flip_animation(tmp, player)
+        board[move[0]][move[1]] = player
+        turn = -turn
+        click_sound.play()
+        time.sleep(0.15)
+    
+    # Show pass turn message
+    def show_pass_message(player, algorithm=None):
+        """Display a message when a player must pass their turn"""
+        # Determine player name
+        if game_mode == "human_vs_human":
+            player_name = "Human 1 (White)" if player == HUMAN else "Human 2 (Black)"
+        elif game_mode == "human_vs_ai":
+            if player == human_color:
+                player_name = "Human"
+            else:
+                algo_name = ai_algorithm.upper() if ai_algorithm == "mcts" else ai_algorithm.capitalize()
+                player_name = f"AI ({algo_name})"
+        elif game_mode == "ai_vs_ai":
+            if player == HUMAN:
+                algo_name = white_algorithm.upper() if white_algorithm == "mcts" else white_algorithm.capitalize()
+                player_name = f"White AI ({algo_name})"
+            else:
+                algo_name = black_algorithm.upper() if black_algorithm == "mcts" else black_algorithm.capitalize()
+                player_name = f"Black AI ({algo_name})"
+        else:
+            player_name = "Player"
+        
+        # Draw semi-transparent overlay
+        overlay = pygame.Surface((1080, 800))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        screen.blit(overlay, (0, 0))
+        
+        # Draw message box
+        box_width = 500
+        box_height = 200
+        box_x = (1080 - box_width) // 2
+        box_y = (800 - box_height) // 2
+        
+        pygame.draw.rect(screen, (255, 255, 255), (box_x, box_y, box_width, box_height), border_radius=15)
+        pygame.draw.rect(screen, (255, 150, 0), (box_x, box_y, box_width, box_height), 5, border_radius=15)
+        
+        # Draw text
+        font_title = pygame.font.SysFont('freesansbold.ttf', 32, bold=True)
+        font_msg = pygame.font.SysFont('freesansbold.ttf', 24)
+        
+        title_text = font_title.render("NO VALID MOVES", True, (255, 100, 0))
+        title_rect = title_text.get_rect(center=(box_x + box_width // 2, box_y + 50))
+        
+        msg_text = font_msg.render(f"{player_name}", True, (0, 0, 0))
+        msg_rect = msg_text.get_rect(center=(box_x + box_width // 2, box_y + 100))
+        
+        msg_text2 = font_msg.render("must pass the turn", True, (0, 0, 0))
+        msg_rect2 = msg_text2.get_rect(center=(box_x + box_width // 2, box_y + 135))
+        
+        screen.blit(title_text, title_rect)
+        screen.blit(msg_text, msg_rect)
+        screen.blit(msg_text2, msg_rect2)
+        
+        pygame.display.flip()
+        time.sleep(1.5)  # Show message for 1.5 seconds
 
     # ---------- Main Game Loop ----------
     game_over = False
@@ -673,13 +1012,103 @@ def main_game():
                 # Check if switch to AI button was clicked
                 if switch_to_ai_button_rect.collidepoint(event.pos) and game_mode in ["human_vs_human", "human_vs_ai"]:
                     button_click_sound.play()
-                    game_mode = "ai_vs_ai"
-                    ai_auto_delay = 1.2  # Switch to AI vs AI delay
-                    last_ai_move_time = time.time()
-                    # Flash button feedback
-                    pygame.draw.rect(screen, (50, 255, 150), switch_to_ai_button_rect, border_radius=8)
-                    pygame.display.flip()
-                    time.sleep(0.15)
+                    
+                    # Show algorithm selection dialog
+                    selecting_switch_ai = True
+                    temp_white_algo = "minimax"
+                    temp_black_algo = "mcts"
+                    
+                    while selecting_switch_ai:
+                        screen.fill((255, 255, 255))
+                        draw_text(540, 150, "Choose AI Algorithms", 36, (0, 100, 200))
+                        
+                        # White side algorithm
+                        draw_text(540, 220, "White Side Algorithm:", 28)
+                        w_greedy_btn = pygame.Rect(280, 250, 160, 50)
+                        w_minimax_btn = pygame.Rect(460, 250, 160, 50)
+                        w_mcts_btn = pygame.Rect(640, 250, 160, 50)
+                        
+                        m_pos = pygame.mouse.get_pos()
+                        for btn, name in [(w_greedy_btn, "greedy"), (w_minimax_btn, "minimax"), (w_mcts_btn, "mcts")]:
+                            if temp_white_algo == name:
+                                pygame.draw.rect(screen, (255, 220, 100), btn, border_radius=8)
+                                pygame.draw.rect(screen, (200, 150, 0), btn, 3, border_radius=8)
+                            else:
+                                col = (255, 240, 180) if btn.collidepoint(m_pos) else (240, 230, 210)
+                                pygame.draw.rect(screen, col, btn, border_radius=8)
+                        
+                        draw_text(w_greedy_btn.centerx, w_greedy_btn.centery, "Greedy", 22)
+                        draw_text(w_minimax_btn.centerx, w_minimax_btn.centery, "Minimax", 22)
+                        draw_text(w_mcts_btn.centerx, w_mcts_btn.centery, "MCTS", 22)
+                        
+                        # Black side algorithm
+                        draw_text(540, 340, "Black Side Algorithm:", 28)
+                        b_greedy_btn = pygame.Rect(280, 370, 160, 50)
+                        b_minimax_btn = pygame.Rect(460, 370, 160, 50)
+                        b_mcts_btn = pygame.Rect(640, 370, 160, 50)
+                        
+                        for btn, name in [(b_greedy_btn, "greedy"), (b_minimax_btn, "minimax"), (b_mcts_btn, "mcts")]:
+                            if temp_black_algo == name:
+                                pygame.draw.rect(screen, (180, 180, 180), btn, border_radius=8)
+                                pygame.draw.rect(screen, (80, 80, 80), btn, 3, border_radius=8)
+                            else:
+                                col = (200, 200, 200) if btn.collidepoint(m_pos) else (230, 230, 230)
+                                pygame.draw.rect(screen, col, btn, border_radius=8)
+                        
+                        draw_text(b_greedy_btn.centerx, b_greedy_btn.centery, "Greedy", 22)
+                        draw_text(b_minimax_btn.centerx, b_minimax_btn.centery, "Minimax", 22)
+                        draw_text(b_mcts_btn.centerx, b_mcts_btn.centery, "MCTS", 22)
+                        
+                        # Start button
+                        start_btn = pygame.Rect(490, 480, 150, 60)
+                        col = (100, 255, 100) if start_btn.collidepoint(m_pos) else (150, 255, 150)
+                        pygame.draw.rect(screen, col, start_btn, border_radius=10)
+                        pygame.draw.rect(screen, (0, 150, 0), start_btn, 3, border_radius=10)
+                        draw_text(start_btn.centerx, start_btn.centery, "START", 28, (0, 100, 0))
+                        
+                        # Cancel button
+                        cancel_btn = pygame.Rect(320, 480, 150, 60)
+                        col = (255, 150, 150) if cancel_btn.collidepoint(m_pos) else (255, 200, 200)
+                        pygame.draw.rect(screen, col, cancel_btn, border_radius=10)
+                        pygame.draw.rect(screen, (200, 0, 0), cancel_btn, 3, border_radius=10)
+                        draw_text(cancel_btn.centerx, cancel_btn.centery, "CANCEL", 28, (150, 0, 0))
+                        
+                        pygame.display.flip()
+                        
+                        for evt in pygame.event.get():
+                            if evt.type == pygame.QUIT:
+                                pygame.quit()
+                                sys.exit()
+                            elif evt.type == pygame.MOUSEBUTTONDOWN:
+                                button_click_sound.play()
+                                if w_greedy_btn.collidepoint(evt.pos):
+                                    temp_white_algo = "greedy"
+                                elif w_minimax_btn.collidepoint(evt.pos):
+                                    temp_white_algo = "minimax"
+                                elif w_mcts_btn.collidepoint(evt.pos):
+                                    temp_white_algo = "mcts"
+                                elif b_greedy_btn.collidepoint(evt.pos):
+                                    temp_black_algo = "greedy"
+                                elif b_minimax_btn.collidepoint(evt.pos):
+                                    temp_black_algo = "minimax"
+                                elif b_mcts_btn.collidepoint(evt.pos):
+                                    temp_black_algo = "mcts"
+                                elif start_btn.collidepoint(evt.pos):
+                                    selecting_switch_ai = False
+                                elif cancel_btn.collidepoint(evt.pos):
+                                    # Cancel the switch - stay in current mode
+                                    selecting_switch_ai = False
+                                    temp_white_algo = None  # Mark as cancelled
+                        
+                        clock.tick(FPS)
+                    
+                    # Apply the selections only if not cancelled
+                    if temp_white_algo is not None:
+                        white_algorithm = temp_white_algo
+                        black_algorithm = temp_black_algo
+                        game_mode = "ai_vs_ai"
+                        ai_auto_delay = 1.2
+                        last_ai_move_time = time.time()
                     continue  # Skip other mouse handling for this click
                 
                 if game_mode == "human_vs_human":
@@ -701,70 +1130,45 @@ def main_game():
                             click_sound.play()
                             time.sleep(0.05)
                 elif game_mode == "human_vs_ai":
-                    if turn == HUMAN:
-                        handle_human_click(event.pos)
+                    # Handle click based on human's chosen color
+                    if turn == human_color:
+                        x, y = event.pos
+                        x -= shift_right
+                        y -= shift_down
+                        i, j = int(x // square_size), int(y // square_size)
+                        if 0 <= i < grid_size and 0 <= j < grid_size:
+                            if (i, j) in get_valid_moves(board, human_color):
+                                tmp = flip_piecehuman(i, j, human_color)
+                                img = white_image if human_color == HUMAN else black_image
+                                screen.blit(img, (i * cell + shift_right, j * cell + shift_down))
+                                pygame.display.flip()
+                                flip_animation(tmp, human_color)
+                                board[i][j] = human_color
+                                turn = -turn
+                                click_sound.play()
+                                time.sleep(0.15)
 
         # Automatic AI actions based on mode
         now = time.time()
         if game_mode == "human_vs_ai":
-            if turn == COMPUTER and not is_game_over(board):
-                # little delay so player can see changes
+            # AI plays when it's not human's turn
+            ai_player = -human_color
+            if turn == ai_player and not is_game_over(board):
                 if now - last_ai_move_time > ai_auto_delay:
-                    handle_ai_minimax_move(depth=4)
+                    handle_ai_move(ai_player, ai_algorithm)
                     last_ai_move_time = now
 
         elif game_mode == "ai_vs_ai":
-            # Both players automated: Minimax (player -1) vs MCTS (player -1 as well in our previous setup)
-            # We'll set: AI1 = Minimax (plays as HUMAN side for variety), AI2 = MCTS (plays as COMPUTER)
-            # To make them alternate properly, we will let HUMAN be one AI (minimax) and COMPUTER be MCTS.
+            # Both players are AI with selected algorithms
             if now - last_ai_move_time > ai_auto_delay and not is_game_over(board):
-                # pick mover based on turn
                 if turn == HUMAN:
-                    # Minimax playing as HUMAN side (so we use minimax but compute with player=HUMAN)
-                    Ai_moves = get_valid_moves(board, HUMAN)
-                    if Ai_moves:
-                        # Use minimax but flipping perspective: we want HUMAN to maximize its presence
-                        b_s = float('-inf')
-                        best_move = None
-                        for move in Ai_moves:
-                            temp_board = deep_copy(board)
-                            flipped_board = flip_pieces(temp_board, move[0], move[1], HUMAN)
-                            flipped_board[move[0]][move[1]] = HUMAN
-                            # minimax expects player param to next mover; adapt by calling with next player COMPUTER
-                            score = minimax(flipped_board, 3, COMPUTER, float('-inf'), float('inf'), 3)
-                            if score >= b_s:
-                                b_s = score
-                                best_move = move
-                        if best_move:
-                            tmp = flip_piecehuman(best_move[0], best_move[1], HUMAN)
-                            screen.blit(white_image, (best_move[0] * cell + shift_right, best_move[1] * cell + shift_down))
-                            pygame.display.flip()
-                            flip_animation(tmp, HUMAN)
-                            board[best_move[0]][best_move[1]] = HUMAN
-                            turn = -turn
-                            click_sound.play()  # ADDED: Play sound for AI move
-                            last_ai_move_time = now
-                    else:
-                        # no moves -> pass
-                        turn = -turn
-                        last_ai_move_time = now
+                    # White side uses white_algorithm
+                    handle_ai_move(HUMAN, white_algorithm)
+                    last_ai_move_time = now
                 else:
-                    # COMPUTER => MCTS
-                    Ai_moves = get_valid_moves(board, COMPUTER)
-                    if Ai_moves:
-                        move = mcts_move(board, COMPUTER, iterations=MCTS_ITERATIONS)
-                        if move:
-                            tmp = flip_piecehuman(move[0], move[1], COMPUTER)
-                            screen.blit(black_image, (move[0] * cell + shift_right, move[1] * cell + shift_down))
-                            pygame.display.flip()
-                            flip_animation(tmp, COMPUTER)
-                            board[move[0]][move[1]] = COMPUTER
-                            turn = -turn
-                            click_sound.play()  # ADDED: Play sound for AI move
-                            last_ai_move_time = now
-                    else:
-                        turn = -turn
-                        last_ai_move_time = now
+                    # Black side uses black_algorithm
+                    handle_ai_move(COMPUTER, black_algorithm)
+                    last_ai_move_time = now
 
         # Check end conditions and passing logic
         valid_moves_h = get_valid_moves(board, HUMAN)
@@ -772,16 +1176,22 @@ def main_game():
         if is_game_over(board):
             game_over = True
         else:
-            # If current player has no moves, pass turn
+            # If current player has no moves, show pass message and switch turn
             if turn == HUMAN and not valid_moves_h:
                 if not valid_moves_c:
                     game_over = True
                 else:
+                    # Show pass message for human player in human_vs_human mode
+                    if game_mode == "human_vs_human":
+                        show_pass_message(HUMAN)
                     turn = COMPUTER
             elif turn == COMPUTER and not valid_moves_c:
                 if not valid_moves_h:
                     game_over = True
                 else:
+                    # Show pass message for human player 2 in human_vs_human mode
+                    if game_mode == "human_vs_human":
+                        show_pass_message(COMPUTER)
                     turn = HUMAN
 
         # Draw loop updates
@@ -794,7 +1204,7 @@ def main_game():
                 current_valid = get_valid_moves(board, turn)
             elif game_mode == "human_vs_ai":
                 # show valid moves only when human's turn
-                current_valid = get_valid_moves(board, HUMAN) if turn == HUMAN else []
+                current_valid = get_valid_moves(board, human_color) if turn == human_color else []
             elif game_mode == "ai_vs_ai":
                 # hide move hints during AI-vs-AI for clarity (or show none)
                 current_valid = []
@@ -845,15 +1255,20 @@ def main_game():
                 winner_detail = "It's a Tie!"
                 border_color = (150, 150, 150)
         elif game_mode == "human_vs_ai":
-            if score_human > score_computer:
+            # Determine who won based on human's color
+            human_score = score_human if human_color == HUMAN else score_computer
+            ai_score = score_computer if human_color == HUMAN else score_human
+            
+            if human_score > ai_score:
                 image = winner_image
                 winner = "Human"
                 winner_detail = "Human Wins!"
                 border_color = (0, 255, 0)
-            elif score_computer > score_human:
+            elif ai_score > human_score:
                 image = defeat_image
-                winner = "Computer"
-                winner_detail = "AI Wins!"
+                winner = "AI"
+                ai_name = ai_algorithm.upper() if ai_algorithm == "mcts" else ai_algorithm.capitalize()
+                winner_detail = f"AI ({ai_name}) Wins!"
                 border_color = (255, 0, 0)
             else:
                 image = tie_image
@@ -861,15 +1276,18 @@ def main_game():
                 winner_detail = "It's a Tie!"
                 border_color = (150, 150, 150)
         elif game_mode == "ai_vs_ai":
+            white_ai_name = white_algorithm.upper() if white_algorithm == "mcts" else white_algorithm.capitalize()
+            black_ai_name = black_algorithm.upper() if black_algorithm == "mcts" else black_algorithm.capitalize()
+            
             if score_human > score_computer:
                 image = winner_image
-                winner = "AI 1"
-                winner_detail = "AI 1 (Minimax) Wins!"
+                winner = "White AI"
+                winner_detail = f"White ({white_ai_name}) Wins!"
                 border_color = (0, 200, 255)
             elif score_computer > score_human:
                 image = winner_image
-                winner = "AI 2"
-                winner_detail = "AI 2 (MCTS) Wins!"
+                winner = "Black AI"
+                winner_detail = f"Black ({black_ai_name}) Wins!"
                 border_color = (255, 100, 0)
             else:
                 image = tie_image
